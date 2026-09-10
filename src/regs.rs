@@ -352,7 +352,8 @@ impl SkyarchRegisters {
                     _ => Err(SkyarchException::Undefined)
                 }
             }
-            Map::Info | Map::Gprs => Ok(LeU32::ZERO),
+            Map::Gprs => Ok(self.read_gpr(reg)),
+            Map::Info => Ok(LeU32::ZERO),
             Map::CoprocessorControl => {
                 match reg.get() {
                     x @ (0..8) => {
@@ -375,7 +376,7 @@ impl SkyarchRegisters {
 
 bitfield!{
     #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Pod, Zeroable)]
-    pub struct SkyarchFlags : LeU32 {
+    pub struct SkyarchFlags : LeU8 {
         pub c @ 0: bool,
         pub v @ 1: bool,
         pub n @ 2: bool,

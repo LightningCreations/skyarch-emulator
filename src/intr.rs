@@ -25,3 +25,11 @@ bitfield! {
         pub addr @ 3..32: AlignedAddr<LeU32, 3>,
     }
 }
+
+bitfield! {
+    #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Pod, Zeroable)]
+    pub struct IntSlot : LeU64 {
+        pub present @ 0 : bool,
+        pub addr @ 2..32: AlignedAddr<LeU32, 2>,
+    }
+}

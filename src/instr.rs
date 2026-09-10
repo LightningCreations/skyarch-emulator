@@ -98,7 +98,7 @@ macro_rules! skyarch_instr {
 
                 match opcode {
                     $($(x if x & !(1 << $lbits) ==)? $opc => {
-                        let payload: ${concat($instr, Payload)} = bytemuck::must_cast(opcode);
+                        let payload: ${concat($instr, Payload)} = bytemuck::must_cast(w);
 
                         if !payload.is_valid() {
                             Err(SkyarchException::Undefined)

@@ -1,6 +1,6 @@
-use emu_lib::{alu::{self, AluFlags, arith_op}, cpu::{CpuDef, NoVirt, Status}, datatypes::{LeInt, LeU8, LeU16, LeU32}};
+use emu_lib::{alu::{self, AluFlags, arith_op}, bitfield::AlignedAddr, cpu::{CpuDef, NoVirt, Status}, datatypes::{LeInt, LeU8, LeU16, LeU32}};
 
-use crate::{except::SkyarchException, instr::{MemWidth, SkyarchInstr}, regs::{Map, SkyarchFlags, SkyarchRegisters}};
+use crate::{except::SkyarchException, instr::{MemWidth, SkyarchInstr}, intr::{IntSlot, Intctl, Intret}, regs::{Map, SkyarchFlags, SkyarchRegisters}};
 
 
 fn extend(val: LeU16, x: bool) -> LeU32 {
@@ -92,9 +92,12 @@ impl CpuDef for Skyarch {
                     mov.map()
                 };
 
-                let val = cpu.registers().read(src_map, mov.src())?;
+                let dest_reg = mov.dest();
+                let src_reg = mov.src();
 
-                cpu.registers().check_write(dest_map, mov.dest())?;
+                let val = cpu.registers().read(src_map, src_reg)?;
+
+                cpu.registers().check_write(dest_map, dest_reg)?;
 
                 if mov.cc().check_condition(*cpu.flags()) {
                     cpu.registers_mut().write(dest_map, mov.dest(), val)?;
@@ -557,6 +560,37 @@ impl CpuDef for Skyarch {
     }
 
     fn handle_except<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>>(cpu: &mut emu_lib::cpu::Cpu<Self, M>, except: Self::Exception) -> Result<Self::VAddr, Option<Self::Exception>> {
-        todo!()
+        let ictl = cpu.registers().intr().intctl;
+
+        let mut real_except = except;
+
+        let ip = cpu.current_ip();
+
+        let intr = cpu.registers_mut().intr_mut();
+
+        if ictl.abort() {
+            return Err(None)
+        } else if ictl.mask() < LeU8::from_ne(1) {
+            real_except = SkyarchException::Abort;
+            intr.intctl = Intctl::new().with_abort(true);
+        } else {
+            let iret = Intret::new().with_addr(AlignedAddr::new(ip)).with_retmask(ictl.mask());
+            
+            intr.intctl = Intctl::new().with_abort(true);
+            intr.intret[0] = iret;
+        }
+
+        let slot = LeU32::from_ne((real_except as u32) << 3);
+
+        let addr = intr.inttab.addr().into_inner() + slot;
+
+        let imap = cpu.read::<IntSlot>(addr).map_err(|e| Some(e))?;
+
+        if !imap.is_valid() || !imap.present() {
+            return Err(Some(SkyarchException::Consistency))
+        }
+
+        let addr = imap.addr().into_inner();
+        Ok(addr)
     }
 }
