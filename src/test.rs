@@ -33,8 +33,8 @@ fn make_rom(data: &[LeU32], exec: &[LeU32]) -> Box<[LeU32; ROM_SIZE]> {
     rom
 }
 
-fn run_test(rom: &[LeU32], expected: LeU32) {
-    let rom = bytemuck::cast_slice(rom);
+fn run_test(rom: impl AsRef<[LeU32]>, expected: LeU32) {
+    let rom = bytemuck::cast_slice(rom.as_ref());
 
     let mut cpu = Cpu::new(Skyarch::new(), Rc::new(MemoryControllerNonSync::new(256)), rom, LeU32::zero());
 
@@ -49,8 +49,8 @@ fn run_test(rom: &[LeU32], expected: LeU32) {
     assert_eq!(reason, StopReason::Halted);
 }
 
-fn run_halt_test(rom: &[LeU32]) {
-    let rom = bytemuck::cast_slice(rom);
+fn run_halt_test(rom: impl AsRef<[LeU32]>) {
+    let rom = bytemuck::cast_slice(rom.as_ref());
 
     let mut cpu = Cpu::new(Skyarch::new(), Rc::new(MemoryControllerNonSync::new(256)), rom, LeU32::zero());
 
@@ -61,8 +61,8 @@ fn run_halt_test(rom: &[LeU32]) {
     assert_eq!(reason, StopReason::Halted);
 }
 
-fn run_reset_test(rom: &[LeU32]) {
-    let rom = bytemuck::cast_slice(rom);
+fn run_reset_test(rom: impl AsRef<[LeU32]>) {
+    let rom = bytemuck::cast_slice(rom.as_ref());
 
     let mut cpu = Cpu::new(Skyarch::new(), Rc::new(MemoryControllerNonSync::new(256)), rom, LeU32::zero());
 
@@ -82,6 +82,14 @@ fn test_halt_works() {
 fn test_reset_works() {
     // should immediately reset
     run_reset_test(&*exec_rom(&[LeInt::from_ne(0x00000000)]));
+}
+
+#[test]
+fn test_breakp_no_interrupt() {
+    run_halt_test(&*exec_rom(&[
+        LeInt::from_ne(0x00000041),
+        LeInt::from_ne(0x00000040),
+    ]))
 }
 
 #[test]
@@ -132,4 +140,14 @@ fn test_addi() {
         LeInt::from_ne(0x001FE015),
         LeInt::from_ne(0x00000040)
     ]), LeU32::from_ne(0xDEADBEEF));
+}
+
+#[test]
+fn test_lra() {
+    run_test(&*exec_rom(&[
+        LeInt::from_ne(0x00FC0106),
+        LeInt::from_ne(0x0A05E002),
+        LeInt::from_ne(0x001FE015),
+        LeInt::from_ne(0x00000040)
+    ]), LeU32::from_ne(0x10000))
 }

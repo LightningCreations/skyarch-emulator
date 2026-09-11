@@ -261,6 +261,7 @@ skyarch_instr! {
         CpiEf {f @ 8..14: LeU8, p @ 14..32: LeU32} = 0x30 / 4,
 
         Halt {m @ 8..10: LeU8} = 0x40,
+        Breakpoint {} = 0x41,
         Fence { rr @ 30..32: Ordering} = 0x48,
         Stic {dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, width @ 18..20: MemWidth, f @ 23: bool, order @ 30..32: Ordering} = 0x4B,
         Ldil {dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, width @ 18..20: MemWidth, order @ 30..32: Ordering} = 0x4C,

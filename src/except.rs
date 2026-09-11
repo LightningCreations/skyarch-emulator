@@ -12,6 +12,7 @@ pub enum SkyarchException {
     Undefined = 2,
     UnalignedBranch = 3,
     Consistency = 4,
+    Breakpoint = 5,
     PriorityIrq = 7,
     Coprocessor0 = 8,
     Coprocessor1 = 9,

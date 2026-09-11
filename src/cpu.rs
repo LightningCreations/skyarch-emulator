@@ -554,6 +554,34 @@ impl CpuDef for Skyarch {
                 cpu.registers_mut().write_gpr(dest, val);
                 cpu.registers_mut().write_gpr(ldil.dest2(), valhi);
             },
+            SkyarchInstr::Breakpoint(_) => {
+                // TODO: Signal Debugging Code
+                let ictl = cpu.registers().intr().intctl;
+
+                let real_except = SkyarchException::Breakpoint;
+
+                let ip = cpu.current_ip();
+
+                let intr = cpu.registers_mut().intr_mut();
+
+                if ictl.mask() >= LeU8::from_ne(1) {
+                    let iret = Intret::new().with_addr(AlignedAddr::new(ip)).with_retmask(ictl.mask());
+                    intr.intret[0] = iret;
+                    let slot = LeU32::from_ne((real_except as u32) << 3);
+
+                    let addr = intr.inttab.addr().into_inner() + slot;
+                    let imap = cpu.read::<IntSlot>(addr)?;
+
+                    if imap.present() {
+                        if !imap.is_valid() {
+                            return Err(SkyarchException::Consistency)
+                        }
+
+                        let addr = imap.addr().into_inner();
+                        return Ok(Some(addr))
+                    }
+                }
+            },
         }
 
         Ok(None)
