@@ -1,9 +1,8 @@
-
 use emu_lib::datatypes::*;
 
 use emu_lib::{bitfield, bitfield::AlignedAddr};
 
-bitfield!{
+bitfield! {
     #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Pod, Zeroable)]
     pub struct Intctl : LeU32 {
         pub mask @ 0..2: LeU8,

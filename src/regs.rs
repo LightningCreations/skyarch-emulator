@@ -1,12 +1,20 @@
-
 use core::marker::ConstParamTy;
 use std::cmp::max;
 
-use emu_lib::{alu::AluFlags, bitfield::{BitfieldBase, BitfieldField, BitfieldFieldLength}, bitfield, datatypes::{LeU8, LeU32}, regs::{Regfile, RegfileDesc, RegfileView}};
+use emu_lib::{
+    alu::AluFlags,
+    bitfield,
+    bitfield::{BitfieldBase, BitfieldField, BitfieldFieldLength},
+    datatypes::{LeU8, LeU32},
+    regs::{Regfile, RegfileDesc, RegfileView},
+};
 
 use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 
-use crate::{except::SkyarchException, intr::{Intctl, Intret, Inttab}};
+use crate::{
+    except::SkyarchException,
+    intr::{Intctl, Intret, Inttab},
+};
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, ConstParamTy, CheckedBitPattern, NoUninit)]
 #[repr(u8)]
@@ -35,7 +43,10 @@ const impl BitfieldFieldLength for Map {
     }
 }
 
-const impl<R: [const] BitfieldBase> BitfieldField<R> for Map where LeU8: [const] BitfieldField<R> {
+const impl<R: [const] BitfieldBase> BitfieldField<R> for Map
+where
+    LeU8: [const] BitfieldField<R>,
+{
     fn decode(val: R) -> Self {
         let val = LeU8::decode(val).to_ne();
         assert!(val < 16);
@@ -92,7 +103,6 @@ enum SkyarchRegnoInner {
 pub struct SkyarchRegno(SkyarchRegnoInner);
 
 impl SkyarchRegno {
-
     pub const ZERO: Self = Self(SkyarchRegnoInner::_00);
 
     pub const fn get(self) -> u8 {
@@ -112,7 +122,10 @@ const impl BitfieldFieldLength for SkyarchRegno {
     }
 }
 
-const impl<R: [const] BitfieldBase> BitfieldField<R> for SkyarchRegno where LeU8: [const] BitfieldField<R> {
+const impl<R: [const] BitfieldBase> BitfieldField<R> for SkyarchRegno
+where
+    LeU8: [const] BitfieldField<R>,
+{
     fn decode(val: R) -> Self {
         let val = LeU8::decode(val).to_ne();
         assert!(val < 32);
@@ -136,15 +149,15 @@ impl<const M: Map> RegfileDesc for SkyarchRegs<M> {
     const LEN: usize = 32;
 }
 
-impl RegfileView for SkyarchRegs<{Map::Intr}> {
+impl RegfileView for SkyarchRegs<{ Map::Intr }> {
     type View = SkyarchIntrMap;
 }
 
-impl RegfileView for SkyarchRegs<{Map::Io}> {
+impl RegfileView for SkyarchRegs<{ Map::Io }> {
     type View = IoRegs;
 }
 
-impl RegfileView for SkyarchRegs<{Map::CoprocessorControl}> {
+impl RegfileView for SkyarchRegs<{ Map::CoprocessorControl }> {
     type View = CoprocessorCtl;
 }
 
@@ -159,7 +172,6 @@ pub struct SkyarchIntrMap {
     pub inttab: Inttab,
 }
 
-
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
 pub struct CoprocessorCtl {
@@ -169,7 +181,6 @@ pub struct CoprocessorCtl {
     pub coprocessors_available: LeU32,
 }
 
-
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(transparent)]
 pub struct SkyarchRegisters {
@@ -178,7 +189,9 @@ pub struct SkyarchRegisters {
 
 impl SkyarchRegisters {
     pub const fn new() -> Self {
-        Self { flat_regs: bytemuck::zeroed() }
+        Self {
+            flat_regs: bytemuck::zeroed(),
+        }
     }
 
     pub const fn reset(&mut self, coprocessors: u8) {
@@ -187,31 +200,32 @@ impl SkyarchRegisters {
     }
 
     pub const fn map<const M: Map>(&self) -> &Regfile<SkyarchRegs<M>> {
-        unsafe {&*(&raw const self.flat_regs[M as usize] as *const _)}
+        unsafe { &*(&raw const self.flat_regs[M as usize] as *const _) }
     }
 
     pub const fn map_mut<const M: Map>(&mut self) -> &mut Regfile<SkyarchRegs<M>> {
-        unsafe {&mut *(&raw mut self.flat_regs[M as usize] as *mut _)}
+        unsafe { &mut *(&raw mut self.flat_regs[M as usize] as *mut _) }
     }
 
     pub const fn intr(&self) -> &SkyarchIntrMap {
-        self.map::<{Map::Intr}>().regs_view()
+        self.map::<{ Map::Intr }>().regs_view()
     }
 
     pub const fn intr_mut(&mut self) -> &mut SkyarchIntrMap {
-        self.map_mut::<{Map::Intr}>().regs_view_mut()
+        self.map_mut::<{ Map::Intr }>().regs_view_mut()
     }
 
     pub const fn coctl(&self) -> &CoprocessorCtl {
-        self.map::<{Map::CoprocessorControl}>().regs_view()
+        self.map::<{ Map::CoprocessorControl }>().regs_view()
     }
 
     pub const fn io(&mut self) -> &mut IoRegs {
-        self.map_mut::<{Map::Io}>().regs_view_mut()
+        self.map_mut::<{ Map::Io }>().regs_view_mut()
     }
 
     pub const fn coctl_mut(&mut self) -> &mut CoprocessorCtl {
-        self.map_mut::<{Map::CoprocessorControl}>().regs_view_mut()
+        self.map_mut::<{ Map::CoprocessorControl }>()
+            .regs_view_mut()
     }
 
     const fn raw_read(&self, map: Map, reg: SkyarchRegno) -> LeU32 {
@@ -246,24 +260,19 @@ impl SkyarchRegisters {
     pub const fn check_write(&self, map: Map, reg: SkyarchRegno) -> Result<(), SkyarchException> {
         match map {
             Map::Gprs | Map::Io => Ok(()),
-            Map::Intr => {
-                match reg.get() {
-                    0..12 | 31 => Ok(()),
-                    _ => Err(SkyarchException::Undefined)
-                }
+            Map::Intr => match reg.get() {
+                0..12 | 31 => Ok(()),
+                _ => Err(SkyarchException::Undefined),
             },
-            
-            Map::CoprocessorControl => {
-                match reg.get() {
-                    n @ (0..8) => self.coprocessor_enabled(n),
-                    30 => Ok(()),
-                    _ => Err(SkyarchException::Undefined),
-                }
+
+            Map::CoprocessorControl => match reg.get() {
+                n @ (0..8) => self.coprocessor_enabled(n),
+                30 => Ok(()),
+                _ => Err(SkyarchException::Undefined),
             },
-            Map::Info |
-            Map::_Reserved5 |
-            Map::_Reserved6 |
-            Map::_Reserved7 => Err(SkyarchException::Undefined),
+            Map::Info | Map::_Reserved5 | Map::_Reserved6 | Map::_Reserved7 => {
+                Err(SkyarchException::Undefined)
+            }
             n => {
                 let n = (n as u8).strict_sub(8);
                 self.coprocessor_enabled(n)
@@ -271,67 +280,67 @@ impl SkyarchRegisters {
         }
     }
 
-    pub const fn write(&mut self, map: Map, reg: SkyarchRegno, val: LeU32) -> Result<(), SkyarchException> {
+    pub const fn write(
+        &mut self,
+        map: Map,
+        reg: SkyarchRegno,
+        val: LeU32,
+    ) -> Result<(), SkyarchException> {
         match map {
             Map::Gprs => {
                 self.write_gpr(reg, val);
                 Ok(())
-            },
-            Map::Intr => {
-                match reg.get() {
-                    1..4 | 4..12 => {
+            }
+            Map::Intr => match reg.get() {
+                1..4 | 4..12 => {
+                    self.raw_write(map, reg, val);
+                    Ok(())
+                }
+                0 => {
+                    if (val & (0x8000_0003)) != val {
+                        Err(SkyarchException::Consistency)
+                    } else {
                         self.raw_write(map, reg, val);
                         Ok(())
                     }
-                    0 => {
-                        if (val & (0x8000_0003)) != val {
-                            Err(SkyarchException::Consistency)
-                        } else {
-                            self.raw_write(map, reg, val);
-                            Ok(())
-                        }
-                    }
-                    31 => {
-                        if (val & !0x7) != val {
-                            Err(SkyarchException::Consistency)
-                        } else {
-                            self.raw_write(map, reg, val);
-                            Ok(())
-                        }
-                    }
-                    _ => Err(SkyarchException::Undefined)
                 }
+                31 => {
+                    if (val & !0x7) != val {
+                        Err(SkyarchException::Consistency)
+                    } else {
+                        self.raw_write(map, reg, val);
+                        Ok(())
+                    }
+                }
+                _ => Err(SkyarchException::Undefined),
             },
             Map::Io => {
-                self.raw_write(map, reg,val);
+                self.raw_write(map, reg, val);
                 Ok(())
-            },
-            
-            Map::CoprocessorControl => {
-                match reg.get() {
-                    x @ (0..8) => {
-                        self.coprocessor_enabled(x)?;
+            }
 
+            Map::CoprocessorControl => match reg.get() {
+                x @ (0..8) => {
+                    self.coprocessor_enabled(x)?;
+
+                    self.raw_write(map, reg, val);
+                    Ok(())
+                }
+                30 => {
+                    let avail = self.coctl().coprocessors_available;
+
+                    if (val & avail) != val {
+                        Err(SkyarchException::Consistency)
+                    } else {
                         self.raw_write(map, reg, val);
                         Ok(())
                     }
-                    30 => {
-                        let avail = self.coctl().coprocessors_available;
-
-                        if (val & avail) != val {
-                            Err(SkyarchException::Consistency)
-                        } else {
-                            self.raw_write(map, reg, val);
-                            Ok(())
-                        }
-                    }
-                    _ => Err(SkyarchException::Undefined)
                 }
+                _ => Err(SkyarchException::Undefined),
             },
-            Map::Info |
-            Map::_Reserved5 |
-            Map::_Reserved6 |
-            Map::_Reserved7 => Err(SkyarchException::Undefined),
+            Map::Info | Map::_Reserved5 | Map::_Reserved6 | Map::_Reserved7 => {
+                Err(SkyarchException::Undefined)
+            }
             Map::Coprocessor0 => todo!(),
             Map::Coprocessor1 => todo!(),
             Map::Coprocessor2 => todo!(),
@@ -341,29 +350,25 @@ impl SkyarchRegisters {
             Map::Coprocessor6 => todo!(),
             Map::Coprocessor7 => todo!(),
         }
-    } 
+    }
 
     pub const fn read(&self, map: Map, reg: SkyarchRegno) -> Result<LeU32, SkyarchException> {
         match map {
             Map::Io => Ok(self.raw_read(map, reg)),
-            Map::Intr => {
-                match reg.get() {
-                    0..12 | 31 => Ok(self.raw_read(map, reg)),
-                    _ => Err(SkyarchException::Undefined)
-                }
-            }
+            Map::Intr => match reg.get() {
+                0..12 | 31 => Ok(self.raw_read(map, reg)),
+                _ => Err(SkyarchException::Undefined),
+            },
             Map::Gprs => Ok(self.read_gpr(reg)),
             Map::Info => Ok(LeU32::ZERO),
-            Map::CoprocessorControl => {
-                match reg.get() {
-                    x @ (0..8) => {
-                        self.coprocessor_enabled(x)?;
-                        Ok(self.raw_read(map, reg))
-                    }
-                    30 | 31 => Ok(self.raw_read(map, reg)),
-                    _ => Err(SkyarchException::Undefined)
+            Map::CoprocessorControl => match reg.get() {
+                x @ (0..8) => {
+                    self.coprocessor_enabled(x)?;
+                    Ok(self.raw_read(map, reg))
                 }
-            }
+                30 | 31 => Ok(self.raw_read(map, reg)),
+                _ => Err(SkyarchException::Undefined),
+            },
             Map::_Reserved5 | Map::_Reserved6 | Map::_Reserved7 => Err(SkyarchException::Undefined),
             n => {
                 let x = (n as u8).strict_sub(8);
@@ -374,7 +379,7 @@ impl SkyarchRegisters {
     }
 }
 
-bitfield!{
+bitfield! {
     #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Pod, Zeroable)]
     pub struct SkyarchFlags : LeU8 {
         pub c @ 0: bool,
@@ -384,7 +389,6 @@ bitfield!{
         pub p @ 4: bool,
     }
 }
-
 
 impl SkyarchFlags {
     pub fn xvp(&mut self) {

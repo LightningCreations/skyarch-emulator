@@ -1,4 +1,3 @@
-
 use bytemuck::{Pod, Zeroable};
 
 use emu_lib::bitfield::{BitfieldBase, BitfieldField, BitfieldFieldLength};
@@ -26,7 +25,7 @@ pub enum ConditionCode {
     NotOverflow = 12,
     NotZero = 13,
     NotCarry = 14,
-    Always = 15
+    Always = 15,
 }
 
 impl ConditionCode {
@@ -58,7 +57,10 @@ const impl BitfieldFieldLength for ConditionCode {
     }
 }
 
-const impl<B: [const] BitfieldBase> BitfieldField<B> for ConditionCode where LeU8: [const] BitfieldField<B> {
+const impl<B: [const] BitfieldBase> BitfieldField<B> for ConditionCode
+where
+    LeU8: [const] BitfieldField<B>,
+{
     fn decode(val: B) -> Self {
         let val = LeU8::decode(val).to_ne();
 
@@ -140,7 +142,10 @@ const impl BitfieldFieldLength for UpdateMode {
     }
 }
 
-const impl<B: [const] BitfieldBase> BitfieldField<B> for UpdateMode where LeU8: [const] BitfieldField<B> {
+const impl<B: [const] BitfieldBase> BitfieldField<B> for UpdateMode
+where
+    LeU8: [const] BitfieldField<B>,
+{
     fn decode(val: B) -> Self {
         let val = LeU8::decode(val).to_ne();
 
@@ -169,7 +174,10 @@ const impl BitfieldFieldLength for Ordering {
     }
 }
 
-const impl<B: [const] BitfieldBase> BitfieldField<B> for Ordering where LeU8: [const] BitfieldField<B> {
+const impl<B: [const] BitfieldBase> BitfieldField<B> for Ordering
+where
+    LeU8: [const] BitfieldField<B>,
+{
     fn decode(val: B) -> Self {
         let val = LeU8::decode(val).to_ne();
 
@@ -209,7 +217,10 @@ const impl BitfieldFieldLength for MemWidth {
     }
 }
 
-const impl<B: [const] BitfieldBase> BitfieldField<B> for MemWidth where LeU8: [const] BitfieldField<B> {
+const impl<B: [const] BitfieldBase> BitfieldField<B> for MemWidth
+where
+    LeU8: [const] BitfieldField<B>,
+{
     fn decode(val: B) -> Self {
         let val = LeU8::decode(val).to_ne();
 
@@ -254,7 +265,7 @@ skyarch_instr! {
         Ldflags {d @ 8..13: SkyarchRegno, fmask @ 13..18: LeU8} = 0x18,
         Stflags {s @ 8..13: SkyarchRegno, fmask @ 13..18: LeU8} = 0x19,
         Xvp {} = 0x1A,
-        
+
         Xchg {a @ 8..13: SkyarchRegno, cc @ 13..17: ConditionCode, l @ 17: bool, b @ 18..23: SkyarchRegno} = 0x1C,
         Ext { dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, x @ 18: bool, width @ 27..32: LeU32} = 0x1D,
         Bswap { dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno } = 0x1E,
@@ -297,8 +308,7 @@ impl CpiEfPayload {
 impl SkyarchInstr {
     pub fn validate(&self, regs: &SkyarchRegisters) -> Result<(), SkyarchException> {
         match self {
-            SkyarchInstr::Und00(_) |
-            SkyarchInstr::UndFF(_) => Err(SkyarchException::Undefined),
+            SkyarchInstr::Und00(_) | SkyarchInstr::UndFF(_) => Err(SkyarchException::Undefined),
             SkyarchInstr::St(st) => {
                 if st.dest() == SkyarchRegno::ZERO {
                     Err(SkyarchException::Undefined)
@@ -311,7 +321,7 @@ impl SkyarchInstr {
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Ld(ld) => {
                 if ld.src() == SkyarchRegno::ZERO {
                     Err(SkyarchException::Undefined)
@@ -324,35 +334,35 @@ impl SkyarchInstr {
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Addi(addi) => {
                 if addi.h() & addi.x() {
                     Err(SkyarchException::Undefined)
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Jmpr(jmpr) => {
                 if jmpr.r() == SkyarchRegno::ZERO {
                     Err(SkyarchException::Undefined)
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Iret(iret) => {
                 if iret.p() == LeInt::zero() {
                     Err(SkyarchException::Undefined)
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Ext(ext) => {
                 if ext.width() == LeInt::zero() {
                     Err(SkyarchException::Undefined)
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Rbgen(rbgen) => {
                 if !rbgen.f() {
                     Err(SkyarchException::Undefined)
@@ -368,7 +378,7 @@ impl SkyarchInstr {
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Stic(st) => {
                 if st.dest() == SkyarchRegno::ZERO {
                     Err(SkyarchException::Undefined)
@@ -381,7 +391,7 @@ impl SkyarchInstr {
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Sticw(st) => {
                 if st.dest() == SkyarchRegno::ZERO {
                     Err(SkyarchException::Undefined)
@@ -392,7 +402,7 @@ impl SkyarchInstr {
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Ldil(ld) => {
                 if ld.src() == SkyarchRegno::ZERO {
                     Err(SkyarchException::Undefined)
@@ -403,7 +413,7 @@ impl SkyarchInstr {
                 } else {
                     Ok(())
                 }
-            },
+            }
             SkyarchInstr::Ldilw(ld) => {
                 if ld.src() == SkyarchRegno::ZERO {
                     Err(SkyarchException::Undefined)
@@ -412,8 +422,8 @@ impl SkyarchInstr {
                 } else {
                     Ok(())
                 }
-            },
-            _ => Ok(())
+            }
+            _ => Ok(()),
         }
     }
 }

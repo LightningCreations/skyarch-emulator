@@ -1,12 +1,24 @@
-use emu_lib::{alu::{self, AluFlags, arith_op}, bitfield::AlignedAddr, cpu::{CpuDef, NoVirt, Status}, datatypes::{LeInt, LeU8, LeU16, LeU32}};
+use emu_lib::{
+    alu::{self, AluFlags, arith_op},
+    bitfield::AlignedAddr,
+    cpu::{CpuDef, NoVirt, Status},
+    datatypes::{LeInt, LeU8, LeU16, LeU32},
+};
 
-use crate::{except::SkyarchException, instr::{MemWidth, SkyarchInstr}, intr::{IntSlot, Intctl, Intret}, regs::{Map, SkyarchFlags, SkyarchRegisters}};
-
+use crate::{
+    except::SkyarchException,
+    instr::{MemWidth, SkyarchInstr},
+    intr::{IntSlot, Intctl, Intret},
+    regs::{Map, SkyarchFlags, SkyarchRegisters},
+};
 
 fn extend(val: LeU16, x: bool) -> LeU32 {
-    val.extend::<u32>() | (if x {
-        LeU32::from_ne(0xFFFF_0000)
-    } else { LeU32::zero()})
+    val.extend::<u32>()
+        | (if x {
+            LeU32::from_ne(0xFFFF_0000)
+        } else {
+            LeU32::zero()
+        })
 }
 
 fn dyn_extend(val: LeU32, width: u32, sign_ext: bool) -> LeU32 {
@@ -34,7 +46,7 @@ impl Skyarch {
 impl CpuDef for Skyarch {
     type VAddr = LeU32;
 
-    type PAddr= LeU32;
+    type PAddr = LeU32;
 
     type IoAddress = LeU8;
 
@@ -58,12 +70,20 @@ impl CpuDef for Skyarch {
 
     const MIN_PAGE_SIZE: usize = 4096;
 
-    fn reset<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>>(cpu: &mut emu_lib::cpu::Cpu<Self, M>) {
+    fn reset<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>>(
+        cpu: &mut emu_lib::cpu::Cpu<Self, M>,
+    ) {
         cpu.registers_mut().reset(0);
         let _ = cpu.do_jump(LeU32::from_ne(0xFF00));
     }
 
-    fn decode<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>, I: IntoIterator<Item = Result<Self::InstrWord, Self::Exception>>>(cpu: &emu_lib::cpu::Cpu<Self, M>, instr: I) -> Result<Self::DecodedInstruction, Self::Exception> {
+    fn decode<
+        M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>,
+        I: IntoIterator<Item = Result<Self::InstrWord, Self::Exception>>,
+    >(
+        cpu: &emu_lib::cpu::Cpu<Self, M>,
+        instr: I,
+    ) -> Result<Self::DecodedInstruction, Self::Exception> {
         let mut instr = instr.into_iter();
         let val = instr.next().unwrap()?;
 
@@ -74,23 +94,18 @@ impl CpuDef for Skyarch {
         Ok(op)
     }
 
-    fn execute<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>>(cpu: &mut emu_lib::cpu::Cpu<Self, M>, instr: Self::DecodedInstruction, cur_ip: Self::VAddr) -> Result<Option<Self::VAddr>, Self::Exception> {
+    fn execute<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>>(
+        cpu: &mut emu_lib::cpu::Cpu<Self, M>,
+        instr: Self::DecodedInstruction,
+        cur_ip: Self::VAddr,
+    ) -> Result<Option<Self::VAddr>, Self::Exception> {
         match instr {
-            SkyarchInstr::Und00(_) |
-            SkyarchInstr::UndFF(_) => panic!("Should not decode"),
-            SkyarchInstr::Pause(_) => {},
+            SkyarchInstr::Und00(_) | SkyarchInstr::UndFF(_) => panic!("Should not decode"),
+            SkyarchInstr::Pause(_) => {}
             SkyarchInstr::Mov(mov) => {
-                let dest_map = if mov.dir() {
-                    mov.map()
-                } else {
-                    Map::Gprs
-                };
+                let dest_map = if mov.dir() { mov.map() } else { Map::Gprs };
 
-                let src_map = if mov.dir() {
-                    Map::Gprs
-                } else {
-                    mov.map()
-                };
+                let src_map = if mov.dir() { Map::Gprs } else { mov.map() };
 
                 let dest_reg = mov.dest();
                 let src_reg = mov.src();
@@ -102,7 +117,7 @@ impl CpuDef for Skyarch {
                 if mov.cc().check_condition(*cpu.flags()) {
                     cpu.registers_mut().write(dest_map, mov.dest(), val)?;
                 }
-            },
+            }
             SkyarchInstr::St(st) => {
                 let addr_reg = st.dest();
                 let src = st.src();
@@ -114,18 +129,18 @@ impl CpuDef for Skyarch {
                 let val = cpu.registers().read_gpr(src);
 
                 if (addr & width.amask()) != LeU32::zero() {
-                    return Err(SkyarchException::BusError)
+                    return Err(SkyarchException::BusError);
                 }
-
 
                 match width {
                     crate::instr::MemWidth::Byte => cpu.write(addr, val.truncate::<u8>())?,
                     crate::instr::MemWidth::Half => cpu.write(addr, val.truncate::<u16>())?,
                     crate::instr::MemWidth::Word => cpu.write(addr, val)?,
-                    crate::instr::MemWidth::Double => panic!("64-bit write not allowed (use sticw)"),
+                    crate::instr::MemWidth::Double => {
+                        panic!("64-bit write not allowed (use sticw)")
+                    }
                 }
-
-            },
+            }
             SkyarchInstr::Ld(ld) => {
                 let addr_reg = ld.src();
                 let dest = ld.dest();
@@ -135,9 +150,8 @@ impl CpuDef for Skyarch {
                 let width = ld.width();
 
                 if (addr & width.amask()) != LeU32::zero() {
-                    return Err(SkyarchException::BusError)
+                    return Err(SkyarchException::BusError);
                 }
-
 
                 let val = match width {
                     crate::instr::MemWidth::Byte => cpu.read::<LeU8>(addr)?.extend(),
@@ -147,23 +161,23 @@ impl CpuDef for Skyarch {
                 };
 
                 cpu.registers_mut().write_gpr(dest, val);
-            },
+            }
             SkyarchInstr::Ldi(ldi) => {
                 let val = extend(ldi.i(), ldi.x());
 
                 let reg = ldi.dest();
 
                 cpu.registers_mut().write_gpr(reg, val);
-            },
+            }
             SkyarchInstr::Lra(lra) => {
                 let val = extend(lra.o(), lra.x()) + cur_ip;
 
                 let reg = lra.dest();
 
                 cpu.registers_mut().write_gpr(reg, val);
-            },
+            }
             SkyarchInstr::Addi(addi) => {
-                let val = extend(addi.i(), addi.x()) << ((addi.h() as u32)*16);
+                let val = extend(addi.i(), addi.x()) << ((addi.h() as u32) * 16);
 
                 let reg = addi.dest();
 
@@ -176,43 +190,62 @@ impl CpuDef for Skyarch {
                 }
 
                 cpu.registers_mut().write_gpr(reg, res);
-            },
+            }
             SkyarchInstr::Add(alu) => {
-
                 let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
                 let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
                 let val1 = cpu.registers().read_gpr(alu.a()) << shift1;
                 let val2 = cpu.registers().read_gpr(alu.b()) << shift2;
 
-                let (res, flags) = arith_op(val1, val2, LeInt::from_ne((alu.c() & cpu.flags().c()) as u32), LeU32::overflowing_add);
+                let (res, flags) = arith_op(
+                    val1,
+                    val2,
+                    LeInt::from_ne((alu.c() & cpu.flags().c()) as u32),
+                    LeU32::overflowing_add,
+                );
 
                 if alu.f() {
                     *cpu.flags_mut() = flags;
                 }
 
                 cpu.registers_mut().write_gpr(alu.dest(), res)
-            },
+            }
             SkyarchInstr::Sub(alu) => {
                 let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
                 let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
                 let val1 = cpu.registers().read_gpr(alu.a()) << shift1;
                 let val2 = cpu.registers().read_gpr(alu.b()) << shift2;
-                let (res, flags) = arith_op(val1, val2, LeInt::from_ne((alu.c() & cpu.flags().c()) as u32), LeU32::overflowing_sub);
+                let (res, flags) = arith_op(
+                    val1,
+                    val2,
+                    LeInt::from_ne((alu.c() & cpu.flags().c()) as u32),
+                    LeU32::overflowing_sub,
+                );
 
                 if alu.f() {
                     *cpu.flags_mut() = flags;
                 }
 
                 cpu.registers_mut().write_gpr(alu.dest(), res);
-            },
+            }
             SkyarchInstr::And(alu) => {
                 let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
                 let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
-                let val1 = (cpu.registers().read_gpr(alu.a()) << shift1) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
-                let val2 = (cpu.registers().read_gpr(alu.b()) << shift2) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
+                let val1 = (cpu.registers().read_gpr(alu.a()) << shift1)
+                    ^ (if alu.i() {
+                        LeU32::mask()
+                    } else {
+                        LeU32::zero()
+                    });
+                let val2 = (cpu.registers().read_gpr(alu.b()) << shift2)
+                    ^ (if alu.i() {
+                        LeU32::mask()
+                    } else {
+                        LeU32::zero()
+                    });
 
                 let res = val1 & val2;
 
@@ -221,13 +254,23 @@ impl CpuDef for Skyarch {
                 }
 
                 cpu.registers_mut().write_gpr(alu.dest(), res);
-            },
+            }
             SkyarchInstr::Or(alu) => {
                 let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
                 let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
-                let val1 = (cpu.registers().read_gpr(alu.a()) << shift1) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
-                let val2 = (cpu.registers().read_gpr(alu.b()) << shift2) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
+                let val1 = (cpu.registers().read_gpr(alu.a()) << shift1)
+                    ^ (if alu.i() {
+                        LeU32::mask()
+                    } else {
+                        LeU32::zero()
+                    });
+                let val2 = (cpu.registers().read_gpr(alu.b()) << shift2)
+                    ^ (if alu.i() {
+                        LeU32::mask()
+                    } else {
+                        LeU32::zero()
+                    });
 
                 let res = val1 | val2;
 
@@ -236,13 +279,23 @@ impl CpuDef for Skyarch {
                 }
 
                 cpu.registers_mut().write_gpr(alu.dest(), res);
-            },
+            }
             SkyarchInstr::Xor(alu) => {
                 let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
                 let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
-                let val1 = (cpu.registers().read_gpr(alu.a()) << shift1) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
-                let val2 = (cpu.registers().read_gpr(alu.b()) << shift2) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
+                let val1 = (cpu.registers().read_gpr(alu.a()) << shift1)
+                    ^ (if alu.i() {
+                        LeU32::mask()
+                    } else {
+                        LeU32::zero()
+                    });
+                let val2 = (cpu.registers().read_gpr(alu.b()) << shift2)
+                    ^ (if alu.i() {
+                        LeU32::mask()
+                    } else {
+                        LeU32::zero()
+                    });
 
                 let res = val1 ^ val2;
 
@@ -251,14 +304,14 @@ impl CpuDef for Skyarch {
                 }
 
                 cpu.registers_mut().write_gpr(alu.dest(), res);
-            },
+            }
             SkyarchInstr::Fsl(fsl) => {
                 let mut val = cpu.registers().read_gpr(fsl.v()).to_ne();
                 let quan = cpu.registers().read_gpr(fsl.q()).to_ne();
                 let mut rem = cpu.registers().read_gpr(fsl.r()).to_ne();
 
                 if fsl.x() {
-                    rem ^=  ((val as i32)>>31) as u32;
+                    rem ^= ((val as i32) >> 31) as u32;
                 }
 
                 let mut carry = false;
@@ -268,7 +321,7 @@ impl CpuDef for Skyarch {
                     overflow = true;
                     if !fsl.w() {
                         if val != 0 {
-                            carry =true;
+                            carry = true;
                         }
                         val = rem;
                     }
@@ -276,7 +329,7 @@ impl CpuDef for Skyarch {
 
                 let res = LeU32::from_ne(val.funnel_shl(rem, quan));
 
-                if val.unbounded_shr(32-quan) != 0 {
+                if val.unbounded_shr(32 - quan) != 0 {
                     carry = true;
                 }
 
@@ -288,14 +341,14 @@ impl CpuDef for Skyarch {
                 }
 
                 cpu.registers_mut().write_gpr(fsl.dest(), res);
-            },
+            }
             SkyarchInstr::Fsr(fsr) => {
                 let mut val = cpu.registers().read_gpr(fsr.v()).to_ne();
                 let quan = cpu.registers().read_gpr(fsr.q()).to_ne();
                 let mut rem = cpu.registers().read_gpr(fsr.r()).to_ne();
 
                 if fsr.x() {
-                    rem ^=  ((val as i32)>>31) as u32;
+                    rem ^= ((val as i32) >> 31) as u32;
                 }
 
                 let mut carry = false;
@@ -305,7 +358,7 @@ impl CpuDef for Skyarch {
                     overflow = true;
                     if !fsr.w() {
                         if val != 0 {
-                            carry =true;
+                            carry = true;
                         }
                         val = rem;
                     }
@@ -313,7 +366,7 @@ impl CpuDef for Skyarch {
 
                 let res = LeU32::from_ne(val.funnel_shr(rem, quan));
 
-                if val.unbounded_shl(32-quan) != 0 {
+                if val.unbounded_shl(32 - quan) != 0 {
                     carry = true;
                 }
 
@@ -325,7 +378,7 @@ impl CpuDef for Skyarch {
                 }
 
                 cpu.registers_mut().write_gpr(fsr.dest(), res);
-            },
+            }
             SkyarchInstr::Jmp(jmp) => {
                 let addr = (extend(jmp.off() << 2u32, jmp.offx())) + cur_ip;
 
@@ -335,11 +388,11 @@ impl CpuDef for Skyarch {
                     cpu.registers_mut().write_gpr(link, cur_ip);
                     return Ok(Some(addr));
                 }
-            },
+            }
             SkyarchInstr::Jmpr(jmpr) => {
                 let addr = cpu.registers().read_gpr(jmpr.r());
                 if (addr & 3) != LeInt::zero() {
-                    return Err(SkyarchException::UnalignedBranch)
+                    return Err(SkyarchException::UnalignedBranch);
                 }
                 let link = jmpr.l();
 
@@ -347,13 +400,13 @@ impl CpuDef for Skyarch {
                     cpu.registers_mut().write_gpr(link, cur_ip);
                     return Ok(Some(addr));
                 }
-            },
+            }
             SkyarchInstr::Iret(iret) => {
                 let retreg = iret.p();
 
                 let int = cpu.registers_mut().intr_mut();
 
-                let iret = int.intret[(retreg.to_ne()-1) as usize];
+                let iret = int.intret[(retreg.to_ne() - 1) as usize];
 
                 let addr = iret.addr().into_inner();
 
@@ -362,7 +415,7 @@ impl CpuDef for Skyarch {
                 int.intctl.set_mask(mask);
 
                 return Ok(Some(addr));
-            },
+            }
             SkyarchInstr::In(inp) => {
                 let mut width = inp.w().to_ne();
                 if width == 0 {
@@ -370,51 +423,58 @@ impl CpuDef for Skyarch {
                 }
                 let bits = cpu.port_in(inp.p(), width);
                 cpu.registers_mut().io().io[inp.d().get() as usize].shift(bits, width);
-            },
+            }
             SkyarchInstr::Out(out) => {
                 let mut width = out.w().to_ne();
                 if width == 0 {
                     width = 32;
                 }
-                let bits = cpu.registers_mut().io().io[out.s().get() as usize].shift(LeInt::zero(), width);
+                let bits =
+                    cpu.registers_mut().io().io[out.s().get() as usize].shift(LeInt::zero(), width);
                 cpu.port_out(out.p(), bits, width);
-            },
+            }
             SkyarchInstr::Stflags(stflags) => {
                 let mask = stflags.fmask();
                 let val = cpu.registers().read_gpr(stflags.s()).truncate::<u8>();
 
                 *cpu.flags_mut() = bytemuck::must_cast(val & mask);
-            },
+            }
             SkyarchInstr::Ldflags(ldflags) => {
                 let mask = ldflags.fmask();
                 let flags: LeU8 = bytemuck::must_cast(mask);
 
-                cpu.registers_mut().write_gpr(ldflags.d(), (flags & mask).extend())
-            },
+                cpu.registers_mut()
+                    .write_gpr(ldflags.d(), (flags & mask).extend())
+            }
             SkyarchInstr::Xvp(_) => {
                 cpu.flags_mut().xvp();
-            },
+            }
             SkyarchInstr::Xchg(xchg) => {
                 let rval1 = cpu.registers().read_gpr(xchg.a());
                 let rval2 = cpu.registers().read_gpr(xchg.b());
                 cpu.registers_mut().write_gpr(xchg.a(), rval2);
                 cpu.registers_mut().write_gpr(xchg.b(), rval1);
-            },
+            }
             SkyarchInstr::Ext(ext) => {
                 let bits = ext.width().to_ne();
 
                 let val = cpu.registers().read_gpr(ext.src());
 
-                cpu.registers_mut().write_gpr(ext.dest(), dyn_extend(val, bits, ext.x()));
-            },
+                cpu.registers_mut()
+                    .write_gpr(ext.dest(), dyn_extend(val, bits, ext.x()));
+            }
             SkyarchInstr::Bswap(bswap) => {
                 let val = cpu.registers().read_gpr(bswap.src());
                 let bits = LeU32::from_le_bytes(val.to_be_bytes::<4>());
 
                 cpu.registers_mut().write_gpr(bswap.dest(), bits);
-            },
+            }
             SkyarchInstr::Rbgen(rbgen) => {
-                let bits = if rbgen.width().to_ne() == 0 {32} else { rbgen.width().to_ne() };
+                let bits = if rbgen.width().to_ne() == 0 {
+                    32
+                } else {
+                    rbgen.width().to_ne()
+                };
 
                 let bytes = cpu.poll_rand::<LeU32>();
 
@@ -422,7 +482,7 @@ impl CpuDef for Skyarch {
 
                 let s = if let Some(bytes) = bytes {
                     cpu.registers_mut().write_gpr(rbgen.dest(), bytes);
-                    
+
                     cpu.flags_mut().set_z(false);
 
                     0x0_FFFF
@@ -435,9 +495,10 @@ impl CpuDef for Skyarch {
                 let s = LeU32::from_ne(s);
 
                 cpu.registers_mut().write_gpr(rbgen.err(), s);
-            },
-            SkyarchInstr::Cpi(_) |
-            SkyarchInstr::CpiEf(_) => todo!("Coprocessors not supported yet"),
+            }
+            SkyarchInstr::Cpi(_) | SkyarchInstr::CpiEf(_) => {
+                todo!("Coprocessors not supported yet")
+            }
             SkyarchInstr::Halt(hlt) => {
                 if hlt.m() == LeInt::zero() {
                     cpu.set_status(Status::Halted);
@@ -445,8 +506,8 @@ impl CpuDef for Skyarch {
                     cpu.def_status_mut().active_mask = hlt.m();
                     cpu.set_status(Status::Paused)
                 }
-            },
-            SkyarchInstr::Fence(_) => {},
+            }
+            SkyarchInstr::Fence(_) => {}
             SkyarchInstr::Stic(stic) => {
                 let addr_reg = stic.dest();
                 let src = stic.src();
@@ -458,7 +519,7 @@ impl CpuDef for Skyarch {
                 let val = cpu.registers().read_gpr(src);
 
                 if (addr & width.amask()) != LeU32::zero() {
-                    return Err(SkyarchException::BusError)
+                    return Err(SkyarchException::BusError);
                 }
 
                 cpu.flags_mut().set_undefined();
@@ -473,11 +534,13 @@ impl CpuDef for Skyarch {
                         crate::instr::MemWidth::Byte => cpu.write(addr, val.truncate::<u8>())?,
                         crate::instr::MemWidth::Half => cpu.write(addr, val.truncate::<u16>())?,
                         crate::instr::MemWidth::Word => cpu.write(addr, val)?,
-                        crate::instr::MemWidth::Double => panic!("64-bit write not allowed (use sticw)"),
+                        crate::instr::MemWidth::Double => {
+                            panic!("64-bit write not allowed (use sticw)")
+                        }
                     }
                 }
-            },
-            
+            }
+
             SkyarchInstr::Sticw(stic) => {
                 let addr_reg = stic.dest();
                 let src = stic.src();
@@ -490,7 +553,7 @@ impl CpuDef for Skyarch {
                 let valhi = cpu.registers().read_gpr(stic.src2());
 
                 if (addr & width.amask()) != LeU32::zero() {
-                    return Err(SkyarchException::BusError)
+                    return Err(SkyarchException::BusError);
                 }
 
                 cpu.flags_mut().set_undefined();
@@ -505,7 +568,7 @@ impl CpuDef for Skyarch {
 
                     cpu.write(addr, val)?;
                 }
-            },
+            }
             SkyarchInstr::Ldil(ldil) => {
                 let addr_reg = ldil.src();
                 let dest = ldil.dest();
@@ -515,9 +578,8 @@ impl CpuDef for Skyarch {
                 let width = ldil.width();
 
                 if (addr & width.amask()) != LeU32::zero() {
-                    return Err(SkyarchException::BusError)
+                    return Err(SkyarchException::BusError);
                 }
-
 
                 let val = match width {
                     crate::instr::MemWidth::Byte => cpu.read::<LeU8>(addr)?.extend(),
@@ -531,7 +593,7 @@ impl CpuDef for Skyarch {
                 status.il_width = Some(width);
 
                 cpu.registers_mut().write_gpr(dest, val);
-            },
+            }
             SkyarchInstr::Ldilw(ldil) => {
                 let addr_reg = ldil.src();
                 let dest = ldil.dest();
@@ -541,9 +603,8 @@ impl CpuDef for Skyarch {
                 let width = MemWidth::Double;
 
                 if (addr & width.amask()) != LeU32::zero() {
-                    return Err(SkyarchException::BusError)
+                    return Err(SkyarchException::BusError);
                 }
-
 
                 let [val, valhi]: [LeU32; 2] = cpu.read(addr)?;
 
@@ -553,7 +614,7 @@ impl CpuDef for Skyarch {
 
                 cpu.registers_mut().write_gpr(dest, val);
                 cpu.registers_mut().write_gpr(ldil.dest2(), valhi);
-            },
+            }
             SkyarchInstr::Breakpoint(_) => {
                 // TODO: Signal Debugging Code
                 let ictl = cpu.registers().intr().intctl;
@@ -565,7 +626,9 @@ impl CpuDef for Skyarch {
                 let intr = cpu.registers_mut().intr_mut();
 
                 if ictl.mask() >= LeU8::from_ne(1) {
-                    let iret = Intret::new().with_addr(AlignedAddr::new(ip)).with_retmask(ictl.mask());
+                    let iret = Intret::new()
+                        .with_addr(AlignedAddr::new(ip))
+                        .with_retmask(ictl.mask());
                     intr.intret[0] = iret;
                     let slot = LeU32::from_ne((real_except as u32) << 3);
 
@@ -574,20 +637,23 @@ impl CpuDef for Skyarch {
 
                     if imap.present() {
                         if !imap.is_valid() {
-                            return Err(SkyarchException::Consistency)
+                            return Err(SkyarchException::Consistency);
                         }
 
                         let addr = imap.addr().into_inner();
-                        return Ok(Some(addr))
+                        return Ok(Some(addr));
                     }
                 }
-            },
+            }
         }
 
         Ok(None)
     }
 
-    fn handle_except<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>>(cpu: &mut emu_lib::cpu::Cpu<Self, M>, except: Self::Exception) -> Result<Self::VAddr, Option<Self::Exception>> {
+    fn handle_except<M: emu_lib::memory::MemorySupplier<Self::PAddr, Data = Self::CacheLine>>(
+        cpu: &mut emu_lib::cpu::Cpu<Self, M>,
+        except: Self::Exception,
+    ) -> Result<Self::VAddr, Option<Self::Exception>> {
         let ictl = cpu.registers().intr().intctl;
 
         let mut real_except = except;
@@ -597,13 +663,15 @@ impl CpuDef for Skyarch {
         let intr = cpu.registers_mut().intr_mut();
 
         if ictl.abort() {
-            return Err(None)
+            return Err(None);
         } else if ictl.mask() < LeU8::from_ne(1) {
             real_except = SkyarchException::Abort;
             intr.intctl = Intctl::new().with_abort(true);
         } else {
-            let iret = Intret::new().with_addr(AlignedAddr::new(ip)).with_retmask(ictl.mask());
-            
+            let iret = Intret::new()
+                .with_addr(AlignedAddr::new(ip))
+                .with_retmask(ictl.mask());
+
             intr.intctl = Intctl::new().with_abort(true);
             intr.intret[0] = iret;
         }
@@ -615,7 +683,7 @@ impl CpuDef for Skyarch {
         let imap = cpu.read::<IntSlot>(addr).map_err(|e| Some(e))?;
 
         if !imap.is_valid() || !imap.present() {
-            return Err(Some(SkyarchException::Consistency))
+            return Err(Some(SkyarchException::Consistency));
         }
 
         let addr = imap.addr().into_inner();

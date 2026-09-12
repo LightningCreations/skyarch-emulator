@@ -1,13 +1,18 @@
 use std::{rc::Rc, sync::Arc};
 
 use bytemuck::Pod;
-use emu_lib::{cpu::{Cpu, StopReason}, datatypes::{LeInt, LeU8, LeU32}, io::TestPort, memory::MemoryControllerNonSync};
+use emu_lib::{
+    cpu::{Cpu, StopReason},
+    datatypes::{LeInt, LeU8, LeU32},
+    io::TestPort,
+    memory::MemoryControllerNonSync,
+};
 
 use crate::cpu::Skyarch;
 
-const ROM_SIZE: usize = 65536/4;
+const ROM_SIZE: usize = 65536 / 4;
 
-const EXEC_ADDR: usize = (0xFF00)/4;
+const EXEC_ADDR: usize = (0xFF00) / 4;
 
 macro_rules! le_array {
     [$($lit:literal),* $(,)?] => {
@@ -46,7 +51,12 @@ fn make_rom(data: &[LeU32], exec: &[LeU32]) -> Box<[LeU32; ROM_SIZE]> {
 fn run_test(rom: impl AsRef<[LeU32]>, expected: LeU32) {
     let rom = bytemuck::cast_slice(rom.as_ref());
 
-    let mut cpu = Cpu::new(Skyarch::new(), Rc::new(MemoryControllerNonSync::new(256)), rom, LeU32::zero());
+    let mut cpu = Cpu::new(
+        Skyarch::new(),
+        Rc::new(MemoryControllerNonSync::new(256)),
+        rom,
+        LeU32::zero(),
+    );
 
     let port = Arc::new(TestPort::new(LeU8::from_ne(0xFF), expected));
 
@@ -62,7 +72,12 @@ fn run_test(rom: impl AsRef<[LeU32]>, expected: LeU32) {
 fn run_halt_test(rom: impl AsRef<[LeU32]>) {
     let rom = bytemuck::cast_slice(rom.as_ref());
 
-    let mut cpu = Cpu::new(Skyarch::new(), Rc::new(MemoryControllerNonSync::new(256)), rom, LeU32::zero());
+    let mut cpu = Cpu::new(
+        Skyarch::new(),
+        Rc::new(MemoryControllerNonSync::new(256)),
+        rom,
+        LeU32::zero(),
+    );
 
     cpu.reset();
 
@@ -74,7 +89,12 @@ fn run_halt_test(rom: impl AsRef<[LeU32]>) {
 fn run_reset_test(rom: impl AsRef<[LeU32]>) {
     let rom = bytemuck::cast_slice(rom.as_ref());
 
-    let mut cpu = Cpu::new(Skyarch::new(), Rc::new(MemoryControllerNonSync::new(256)), rom, LeU32::zero());
+    let mut cpu = Cpu::new(
+        Skyarch::new(),
+        Rc::new(MemoryControllerNonSync::new(256)),
+        rom,
+        LeU32::zero(),
+    );
 
     cpu.reset();
 
@@ -105,129 +125,148 @@ fn test_breakp_no_interrupt() {
 #[test]
 #[should_panic]
 fn test_output_works() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0x0A01E002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::mask())
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0x0A01E002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::mask(),
+    )
 }
 
 #[test]
 fn test_mov() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0x0A01E002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::zero())
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0x0A01E002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::zero(),
+    )
 }
 
 #[test]
 fn test_ldi() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0xDEAF0105),
-        LeInt::from_ne(0x0A05E002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::from_ne(0xDEAF));
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0xDEAF0105),
+            LeInt::from_ne(0x0A05E002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::from_ne(0xDEAF),
+    );
 }
 
 #[test]
 fn test_ldi2() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0x13370105),
-        LeInt::from_ne(0x0A05E002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::from_ne(0x1337));
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0x13370105),
+            LeInt::from_ne(0x0A05E002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::from_ne(0x1337),
+    );
 }
 
 #[test]
 fn test_addi() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0xBEEF0105),
-        LeInt::from_ne(0xDEAD8108),
-        LeInt::from_ne(0x0A05E002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::from_ne(0xDEADBEEF));
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0xBEEF0105),
+            LeInt::from_ne(0xDEAD8108),
+            LeInt::from_ne(0x0A05E002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::from_ne(0xDEADBEEF),
+    );
 }
 
 #[test]
 fn test_lra() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0x00FC0106),
-        LeInt::from_ne(0x0A05E002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::from_ne(0x10000))
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0x00FC0106),
+            LeInt::from_ne(0x0A05E002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::from_ne(0x10000),
+    )
 }
 
 #[test]
 fn test_and() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0x56780105),
-        LeInt::from_ne(0x12348108),
-        LeInt::from_ne(0xA9810205),
-        LeInt::from_ne(0xECCB8208),
-        LeInt::from_ne(0x0008230B),
-        LeInt::from_ne(0x0A0DE002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::from_ne(0))
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0x56780105),
+            LeInt::from_ne(0x12348108),
+            LeInt::from_ne(0xA9810205),
+            LeInt::from_ne(0xECCB8208),
+            LeInt::from_ne(0x0008230B),
+            LeInt::from_ne(0x0A0DE002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::from_ne(0),
+    )
 }
 
 #[test]
 fn test_or() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0x56780105),
-        LeInt::from_ne(0x12348108),
-        LeInt::from_ne(0xA9810205),
-        LeInt::from_ne(0xECCB8208),
-        LeInt::from_ne(0x0008230C),
-        LeInt::from_ne(0x0A0DE002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::from_ne(0xFEFFFFF9))
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0x56780105),
+            LeInt::from_ne(0x12348108),
+            LeInt::from_ne(0xA9810205),
+            LeInt::from_ne(0xECCB8208),
+            LeInt::from_ne(0x0008230C),
+            LeInt::from_ne(0x0A0DE002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::from_ne(0xFEFFFFF9),
+    )
 }
 
 #[test]
 fn test_xor() {
-    run_test(&*exec_rom(&[
-        LeInt::from_ne(0x56780105),
-        LeInt::from_ne(0x12348108),
-        LeInt::from_ne(0xA9810205),
-        LeInt::from_ne(0xECCB8208),
-        LeInt::from_ne(0x0008230D),
-        LeInt::from_ne(0x0A0DE002),
-        LeInt::from_ne(0x001FE015),
-        LeInt::from_ne(0x00000040)
-    ]), LeU32::from_ne(0xFEFFFFF9))
+    run_test(
+        &*exec_rom(&[
+            LeInt::from_ne(0x56780105),
+            LeInt::from_ne(0x12348108),
+            LeInt::from_ne(0xA9810205),
+            LeInt::from_ne(0xECCB8208),
+            LeInt::from_ne(0x0008230D),
+            LeInt::from_ne(0x0A0DE002),
+            LeInt::from_ne(0x001FE015),
+            LeInt::from_ne(0x00000040),
+        ]),
+        LeU32::from_ne(0xFEFFFFF9),
+    )
 }
 
 #[test]
 fn test_add() {
-    run_test(&*exec_rom(
-        le_array![
-            0x00050105,
-            0x00080205,
-            0x00082309,
-            0x0A0DE002,
-            0x001FE015,
-            0x00000040
-        ]
-    ), LeU32::from_ne(13))
+    run_test(
+        &*exec_rom(le_array![
+            0x00050105, 0x00080205, 0x00082309, 0x0A0DE002, 0x001FE015, 0x00000040
+        ]),
+        LeU32::from_ne(13),
+    )
 }
 
 #[test]
 fn test_sub() {
-    run_test(&*exec_rom(
-        le_array![
-            0x00050105,
-            0x00080205,
-            0x0008230A,
-            0x0A0DE002,
-            0x001FE015,
-            0x00000040
-        ]
-    ), LeU32::from_ne(0xFFFF_FFFD))
+    run_test(
+        &*exec_rom(le_array![
+            0x00050105, 0x00080205, 0x0008230A, 0x0A0DE002, 0x001FE015, 0x00000040
+        ]),
+        LeU32::from_ne(0xFFFF_FFFD),
+    )
 }

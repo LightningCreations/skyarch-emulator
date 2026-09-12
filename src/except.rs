@@ -1,9 +1,5 @@
 use emu_lib::memory::BusError;
 
-
-
-
-
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 #[repr(u8)]
 pub enum SkyarchException {
