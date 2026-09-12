@@ -228,11 +228,13 @@ skyarch_instr! {
         Und00 {ing @ 8..32: LeU32} = 0x00,
         UndFF {ing @ 8..32: LeU32} = 0xFF,
         Pause {k @ 8..14: LeU8} = 0x01,
+
         Mov {dest @ 8..13: SkyarchRegno, cc @ 13..17: ConditionCode, l @ 17: bool, src @ 18..23: SkyarchRegno, dir @ 25: bool, map @ 26..30: Map} = 0x02,
         St {dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, width @ 18..20: MemWidth, mode @ 28..30: UpdateMode, order @ 30..32: Ordering} = 0x03,
         Ld {dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, width @ 18..20: MemWidth, mode @ 28..30: UpdateMode, order @ 30..32: Ordering} = 0x04,
         Ldi {dest @ 8..13: SkyarchRegno, x @ 13: bool, i @ 16..32: LeU16} = 0x05,
         Lra {dest @ 8..13: SkyarchRegno, x @ 13: bool, o @ 16..32: LeU16} = 0x06,
+
         Addi {dest @ 8..13: SkyarchRegno, x @ 13: bool, f @ 14: bool, h @ 15: bool, i @ 16..32: LeU16} = 0x08,
         Add { dest @ 8..13: SkyarchRegno, a @ 13..18: SkyarchRegno, b @ 18..23: SkyarchRegno, f @ 23: bool, s @ 24..29: LeU8, p @ 29: bool, c @ 31: bool} = 0x09,
         Sub { dest @ 8..13: SkyarchRegno, a @ 13..18: SkyarchRegno, b @ 18..23: SkyarchRegno, f @ 23: bool, s @ 24..29: LeU8, p @ 29: bool, c @ 31: bool} = 0x0A,
@@ -252,6 +254,7 @@ skyarch_instr! {
         Ldflags {d @ 8..13: SkyarchRegno, fmask @ 13..18: LeU8} = 0x18,
         Stflags {s @ 8..13: SkyarchRegno, fmask @ 13..18: LeU8} = 0x19,
         Xvp {} = 0x1A,
+        
         Xchg {a @ 8..13: SkyarchRegno, cc @ 13..17: ConditionCode, l @ 17: bool, b @ 18..23: SkyarchRegno} = 0x1C,
         Ext { dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, x @ 18: bool, width @ 27..32: LeU32} = 0x1D,
         Bswap { dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno } = 0x1E,
@@ -262,6 +265,7 @@ skyarch_instr! {
 
         Halt {m @ 8..10: LeU8} = 0x40,
         Breakpoint {} = 0x41,
+
         Fence { rr @ 30..32: Ordering} = 0x48,
         Stic {dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, width @ 18..20: MemWidth, f @ 23: bool, order @ 30..32: Ordering} = 0x4B,
         Ldil {dest @ 8..13: SkyarchRegno, src @ 13..18: SkyarchRegno, width @ 18..20: MemWidth, order @ 30..32: Ordering} = 0x4C,

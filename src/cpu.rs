@@ -179,8 +179,8 @@ impl CpuDef for Skyarch {
             },
             SkyarchInstr::Add(alu) => {
 
-                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 1 };
-                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 1 };
+                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
+                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
                 let val1 = cpu.registers().read_gpr(alu.a()) << shift1;
                 let val2 = cpu.registers().read_gpr(alu.b()) << shift2;
@@ -194,12 +194,12 @@ impl CpuDef for Skyarch {
                 cpu.registers_mut().write_gpr(alu.dest(), res)
             },
             SkyarchInstr::Sub(alu) => {
-                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 1 };
-                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 1 };
+                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
+                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
                 let val1 = cpu.registers().read_gpr(alu.a()) << shift1;
                 let val2 = cpu.registers().read_gpr(alu.b()) << shift2;
-                let (res, flags) = arith_op(val1, val2, LeInt::from_ne(!(alu.c() & cpu.flags().c()) as u32), LeU32::overflowing_sub);
+                let (res, flags) = arith_op(val1, val2, LeInt::from_ne((alu.c() & cpu.flags().c()) as u32), LeU32::overflowing_sub);
 
                 if alu.f() {
                     *cpu.flags_mut() = flags;
@@ -208,8 +208,8 @@ impl CpuDef for Skyarch {
                 cpu.registers_mut().write_gpr(alu.dest(), res);
             },
             SkyarchInstr::And(alu) => {
-                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 1 };
-                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 1 };
+                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
+                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
                 let val1 = (cpu.registers().read_gpr(alu.a()) << shift1) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
                 let val2 = (cpu.registers().read_gpr(alu.b()) << shift2) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
@@ -223,8 +223,8 @@ impl CpuDef for Skyarch {
                 cpu.registers_mut().write_gpr(alu.dest(), res);
             },
             SkyarchInstr::Or(alu) => {
-                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 1 };
-                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 1 };
+                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
+                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
                 let val1 = (cpu.registers().read_gpr(alu.a()) << shift1) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
                 let val2 = (cpu.registers().read_gpr(alu.b()) << shift2) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
@@ -238,13 +238,13 @@ impl CpuDef for Skyarch {
                 cpu.registers_mut().write_gpr(alu.dest(), res);
             },
             SkyarchInstr::Xor(alu) => {
-                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 1 };
-                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 1 };
+                let shift1 = if alu.p() { alu.s().to_ne() as u32 } else { 0 };
+                let shift2 = if !alu.p() { alu.s().to_ne() as u32 } else { 0 };
 
                 let val1 = (cpu.registers().read_gpr(alu.a()) << shift1) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
                 let val2 = (cpu.registers().read_gpr(alu.b()) << shift2) ^ (if alu.i() { LeU32::mask() } else { LeU32::zero() });
 
-                let res = val1 & val2;
+                let res = val1 ^ val2;
 
                 if alu.f() {
                     cpu.flags_mut().set_logic_from_val(res);

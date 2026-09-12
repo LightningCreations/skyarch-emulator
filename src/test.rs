@@ -9,6 +9,16 @@ const ROM_SIZE: usize = 65536/4;
 
 const EXEC_ADDR: usize = (0xFF00)/4;
 
+macro_rules! le_array {
+    [$($lit:literal),* $(,)?] => {
+        const {
+            &[
+                $(LeInt::from_ne($lit)),*
+            ]
+        }
+    };
+}
+
 fn exec_rom(exec: &[LeU32]) -> Box<[LeU32; ROM_SIZE]> {
     make_rom(&[], exec)
 }
@@ -150,4 +160,74 @@ fn test_lra() {
         LeInt::from_ne(0x001FE015),
         LeInt::from_ne(0x00000040)
     ]), LeU32::from_ne(0x10000))
+}
+
+#[test]
+fn test_and() {
+    run_test(&*exec_rom(&[
+        LeInt::from_ne(0x56780105),
+        LeInt::from_ne(0x12348108),
+        LeInt::from_ne(0xA9810205),
+        LeInt::from_ne(0xECCB8208),
+        LeInt::from_ne(0x0008230B),
+        LeInt::from_ne(0x0A0DE002),
+        LeInt::from_ne(0x001FE015),
+        LeInt::from_ne(0x00000040)
+    ]), LeU32::from_ne(0))
+}
+
+#[test]
+fn test_or() {
+    run_test(&*exec_rom(&[
+        LeInt::from_ne(0x56780105),
+        LeInt::from_ne(0x12348108),
+        LeInt::from_ne(0xA9810205),
+        LeInt::from_ne(0xECCB8208),
+        LeInt::from_ne(0x0008230C),
+        LeInt::from_ne(0x0A0DE002),
+        LeInt::from_ne(0x001FE015),
+        LeInt::from_ne(0x00000040)
+    ]), LeU32::from_ne(0xFEFFFFF9))
+}
+
+#[test]
+fn test_xor() {
+    run_test(&*exec_rom(&[
+        LeInt::from_ne(0x56780105),
+        LeInt::from_ne(0x12348108),
+        LeInt::from_ne(0xA9810205),
+        LeInt::from_ne(0xECCB8208),
+        LeInt::from_ne(0x0008230D),
+        LeInt::from_ne(0x0A0DE002),
+        LeInt::from_ne(0x001FE015),
+        LeInt::from_ne(0x00000040)
+    ]), LeU32::from_ne(0xFEFFFFF9))
+}
+
+#[test]
+fn test_add() {
+    run_test(&*exec_rom(
+        le_array![
+            0x00050105,
+            0x00080205,
+            0x00082309,
+            0x0A0DE002,
+            0x001FE015,
+            0x00000040
+        ]
+    ), LeU32::from_ne(13))
+}
+
+#[test]
+fn test_sub() {
+    run_test(&*exec_rom(
+        le_array![
+            0x00050105,
+            0x00080205,
+            0x0008230A,
+            0x0A0DE002,
+            0x001FE015,
+            0x00000040
+        ]
+    ), LeU32::from_ne(0xFFFF_FFFD))
 }
